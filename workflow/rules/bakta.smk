@@ -20,7 +20,6 @@ rule bakta_proteins:
     threads: 40
     params:
         db=config["bakta"]["db"],
-        cli_args=config["bakta"]["cli_args"],
         out_dir=config["output_dir"] + "/bakta_proteins",
         prefix="proteins",
     log:

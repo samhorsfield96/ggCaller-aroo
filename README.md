@@ -1,4 +1,4 @@
-# ggCalleraroo
+# ggCaller-aroo
 
 A Snakemake pipeline combining graph-based gene prediction with
 [ggCaller](https://github.com/bacpop/ggCaller), pangenome gene clustering

@@ -23,6 +23,8 @@ rule bakta_proteins:
         prefix="proteins",
     log:
         config["output_dir"] + "/logs/bakta_proteins.log",
+    conda:
+        "envs/bakta.yaml"
     shell:
         "bakta_proteins --db {params.db} --output {params.out_dir} "
         "--prefix {params.prefix} {params.cli_args} {input.proteins} > {log} 2>&1"

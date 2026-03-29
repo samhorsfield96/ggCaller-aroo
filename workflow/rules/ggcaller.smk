@@ -6,6 +6,8 @@ rule ggcaller:
         directory(config["output_dir"] + "/ggcaller"),
     params:
         cli_args=config["ggcaller"]["cli_args"],
+    conda:
+        "envs/ggcaller.yaml"
     log:
         config["output_dir"] + "/logs/ggcaller.log",
     shell:

@@ -7,6 +7,8 @@ rule panaroo:
     params:
         cli_args=config["panaroo"]["cli_args"],
         out_dir=config["output_dir"] + "/panaroo",
+    conda:
+        "envs/panaroo.yaml"
     log:
         config["output_dir"] + "/logs/panaroo.log",
     shell:

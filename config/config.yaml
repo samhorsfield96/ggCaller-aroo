@@ -1,0 +1,26 @@
+# Path to a text file listing input genome assembly FASTA paths (one per line).
+# ggCaller accepts assembled genomes via --reads (flag name is ggCaller convention).
+samples: "samples.txt"
+
+# Base output directory for all pipeline results
+output_dir: "results"
+
+# ggCaller gene prediction settings
+ggcaller:
+  # CLI arguments passed directly to ggcaller.
+  # Example: "--annotation sensitive --graph --diamonddb /path/to/db --threads 8"
+  cli_args: "--annotation fast"
+
+# Panaroo gene clustering settings
+panaroo:
+  # CLI arguments passed directly to panaroo.
+  # Example: "--clean-mode moderate -a core --core_threshold 0.98 --threads 8"
+  cli_args: "--clean-mode moderate"
+
+# Bakta protein annotation settings
+bakta:
+  # REQUIRED: set this to your local Bakta database directory.
+  db: "/path/to/bakta/db"
+  # CLI arguments passed directly to bakta_proteins.
+  # Example: "--threads 8 --verbose"
+  cli_args: ""

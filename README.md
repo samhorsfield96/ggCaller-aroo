@@ -39,9 +39,17 @@ bakta_proteins ── functional annotation of representative proteins
 
 ## Usage
 
+### 0. Download bakta database
+
+Install Bakta and download the latest bakta database:
+
+`bakta_db download --output <output-path> --type [light|full]`
+
+Add the bakta_db filepath to the config.yaml file.
+
 ### 1. Prepare a samples file
 
-Create a plain-text file (e.g. `samples.txt`) with one genome assembly FASTA
+Create a plain-text file (e.g. `input.txt`) with one genome assembly FASTA
 path per line:
 
 ```
@@ -49,6 +57,10 @@ path per line:
 /path/to/sample2.fasta
 /path/to/sample3.fasta
 ```
+
+You can do this using the command:
+
+`ls -d -1 $PWD/*.fasta > input.txt`
 
 ### 2. Edit `config/config.yaml`
 
@@ -59,13 +71,13 @@ Set `bakta.db` to your local Bakta database path.
 ### 3. Run the pipeline
 
 ```bash
-snakemake --cores <N>
+snakemake --cores <N> --use-conda
 ```
 
 To perform a dry-run first:
 
 ```bash
-snakemake --cores <N> -n
+snakemake --cores <N> -n --use-conda
 ```
 
 ## Configuration
@@ -74,7 +86,7 @@ All tool-specific parameters are controlled via `config/config.yaml`.
 
 | Key | Description |
 |-----|-------------|
-| `samples` | Path to text file listing genome assembly FASTA paths (one per line) |
+| `input.txt` | Path to text file listing genome assembly FASTA paths (one per line) |
 | `output_dir` | Base output directory |
 | `ggcaller.cli_args` | CLI arguments passed verbatim to `ggcaller` |
 | `panaroo.cli_args` | CLI arguments passed verbatim to `panaroo` |
@@ -85,14 +97,14 @@ All tool-specific parameters are controlled via `config/config.yaml`.
 
 ```yaml
 ggcaller:
-  cli_args: "--annotation sensitive --graph --threads 16"
+  cli_args: "--save --kmer 31"
 ```
 
 ### Example Panaroo arguments
 
 ```yaml
 panaroo:
-  cli_args: "--clean-mode moderate -a core --core_threshold 0.98 --threads 16"
+  cli_args: ""--clean-mode moderate -a core --remove-invalid-genes"
 ```
 
 ## Output

@@ -3,13 +3,13 @@ name: Build and push Docker image
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
       - 'docker'
     tags:
       - 'v*'
   pull_request:
     branches:
-      - 'master'
+      - 'main'
 
 jobs:
   docker-upload:

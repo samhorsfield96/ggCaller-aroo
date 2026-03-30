@@ -30,9 +30,6 @@ RUN touch dummy.txt && \
     rm dummy.txt && \
     mamba clean --all --yes
 
-# download bakta DB during build
-RUN bakta_db download --output bakta_db --type light
-
 ENV PATH=$PATH:/opt/conda/bin
 
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]

@@ -30,7 +30,7 @@ RUN touch dummy.txt && mkdir -p /dummy/db && \
 
 # download baktadb
 RUN mkdir -p bakta_db && \
-    bakta_db download --output bakta_db --type light'
+    bakta_db download --output bakta_db --type light
     
 ENV PATH=$PATH:/opt/conda/bin
 

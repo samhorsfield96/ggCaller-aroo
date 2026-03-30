@@ -1,24 +1,18 @@
 # Path to a text file listing input genome assembly FASTA paths (one per line).
 # ggCaller accepts assembled genomes via --refs (flag name is ggCaller convention).
-refs: "/path/to/assembly_list.txt"
+refs: "path/to/refs.txt"
 reads: null  # ggCaller accepts raw reads via --reads (flag name is ggCaller convention). Set to null if not using.
 
 # Base output directory for all pipeline results
-output_dir: "results_test"
+output_dir: "results"
 
-# ggCaller gene prediction settings
-ggcaller:
-  # CLI arguments passed directly to ggcaller.
-  # Example: "--save --kmer 31 --balrog-db /path/to/balrog/db"
-  cli_args: "--save"
+# ggCaller gene prediction CLI settings
+# Example: "--save --kmer 31 --balrog-db /path/to/balrog/db"
+ggcaller_cli_args: "--save"
 
-# Panaroo gene clustering settings
-panaroo:
-  # CLI arguments passed directly to panaroo.
-  # Example: "--clean-mode moderate -a core --remove-invalid-genes"
-  cli_args: "--clean-mode moderate"
+# Panaroo gene clustering CLI settings
+# Example: "--clean-mode moderate -a core --remove-invalid-genes"
+panaroo_cli_args: "--clean-mode moderate"
 
-# Bakta protein annotation settings
-bakta:
-  # REQUIRED: set this to your local Bakta database directory.
-  db: "/path/to/bakta/db"
+# Bakta protein annotation settings, set to local path of bakta_db (e.g. "/data/sam/databases/bakta/db-light")
+bakta_db: "/path/to/bakta_db"

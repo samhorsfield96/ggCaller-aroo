@@ -31,6 +31,22 @@ bakta_proteins ── functional annotation of representative proteins
 
 ## Installation
 
+### via docker
+
+Install [docker](https://docs.docker.com/get-started/get-docker/), then run:
+
+```
+docker pull samhorsfield96/ggcallaroo:main
+```
+
+To run within the container, use the below command, replacing `path to output dir` and `path to workdir` with absolute paths and changing other parameters as required:
+
+```
+docker run -v <path to output dir>:/output -v <path to workdir>:/data samhorsfield96/ggcallaroo:main snakemake --cores 4 --config refs=/data/refs.txt ggcaller_cli_args="--save" panaroo_cli_args="--clean-mode moderate" bakta_db=bakta_db/db-light output_dir=/output/results
+```
+
+### From source
+
 Install the required packages using [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)/[mamba](https://github.com/mamba-org/mamba):
 
 ```
@@ -91,9 +107,9 @@ All tool-specific parameters are controlled via `config/config.yaml`.
 |-----|-------------|
 | `input.txt` | Path to text file listing genome assembly FASTA paths (one per line) |
 | `output_dir` | Base output directory |
-| `ggcaller.cli_args` | CLI arguments passed verbatim to `ggcaller` |
-| `panaroo.cli_args` | CLI arguments passed verbatim to `panaroo` |
-| `bakta.db` | Path to Bakta database directory |
+| `ggcaller_cli_args` | CLI arguments passed verbatim to `ggcaller` |
+| `panaroo_cli_args` | CLI arguments passed verbatim to `panaroo` |
+| `bakta_db` | Path to Bakta database directory |
 
 ### Example ggCaller arguments
 

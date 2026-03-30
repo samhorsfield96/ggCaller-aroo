@@ -5,7 +5,7 @@ rule panaroo:
     output:
         pan_ref=config["output_dir"] + "/panaroo/pan_genome_reference.fa",
     params:
-        cli_args=config["panaroo"]["cli_args"],
+        cli_args=config["panaroo_cli_args"],
         out_dir=config["output_dir"] + "/panaroo",
     threads: 40
     conda:

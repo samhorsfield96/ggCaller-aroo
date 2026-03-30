@@ -19,7 +19,7 @@ rule bakta_proteins:
         config["output_dir"] + "/bakta_proteins/proteins.tsv",
     threads: 40
     params:
-        db=config["bakta"]["db"],
+        db=config["bakta_db"],
         out_dir=config["output_dir"] + "/bakta_proteins",
         prefix="proteins",
     log:

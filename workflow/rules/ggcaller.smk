@@ -8,7 +8,7 @@ rule ggcaller:
     output:
         directory(config["output_dir"] + "/ggcaller"),
     params:
-        cli_args=config["ggcaller"]["cli_args"],
+        cli_args=config["ggcaller_cli_args"],
         input_flag=(
             "--refs" if config.get("refs") is not None else "--reads"
         ),

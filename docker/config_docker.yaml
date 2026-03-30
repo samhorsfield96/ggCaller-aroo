@@ -1,0 +1,11 @@
+# Minimal config used only during Docker build to pre-create Snakemake conda environments.
+# Values are dummies - no rules are actually executed.
+refs: "dummy.txt"
+reads: null
+output_dir: "results"
+ggcaller:
+  cli_args: ""
+panaroo:
+  cli_args: ""
+bakta:
+  db: "/dummy/db"

@@ -1,9 +1,6 @@
-FROM mambaorg/micromamba:latest
+FROM condaforge/mambaforge:latest
 
 USER root
-
-# create a project directory inside user home
-ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 # project dir
 ENV PROJECT_DIR=/app
@@ -19,19 +16,22 @@ COPY --chown=$user:$user docker/entrypoint.sh /usr/local/bin/
 RUN chmod u+x /usr/local/bin/entrypoint.sh
 
 # install environment + ggCaller
-RUN micromamba install -y -n base -f /tmp/environment_docker.yml && \
-    micromamba clean --all --yes && \
+RUN mamba env update -n base -f /tmp/environment_docker.yml && \
+    mamba clean --all --yes && \
     python -m pip install --no-deps --ignore-installed . && \
     mkdir -p bakta_db
 
-# Build execstack from source (needed for PyTorch 1.10)
-# Install patchelf to fix libtorch_cpu.so
-RUN apt-get update && apt-get install -y patchelf && rm -rf /var/lib/apt/lists/*
-RUN find $(python -c "import site; print(site.getsitepackages()[0])") -name libtorch_cpu.so \
-    -exec patchelf --clear-execstack {} \;
-
 # download bakta DB during build
 RUN bakta_db download --output bakta_db --type light
+
+# Pre-create Snakemake conda environments so they don't need to be built at runtime.
+# Uses a dummy config - no rules are executed, only environments are resolved and installed.
+COPY --chown=root:root docker/config_docker.yaml /tmp/config_docker.yaml
+RUN touch dummy.txt && \
+    snakemake --conda-create-envs-only --use-conda --conda-frontend mamba \
+    --cores 1 --configfile /tmp/config_docker.yaml && \
+    rm dummy.txt && \
+    mamba clean --all --yes
 
 ENV PATH=$PATH:/opt/conda/bin
 

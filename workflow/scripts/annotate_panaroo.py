@@ -17,27 +17,7 @@ from pathlib import Path
 
 from Bio import SeqIO
 
-logging.basicConfig(
-    filename=str(snakemake.log[0]),
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-)
-
-bakta_tsv   = Path(str(snakemake.input.bakta_tsv))
-panaroo_dir = Path(str(snakemake.params.panaroo_dir))
-
-out_gpa       = Path(str(snakemake.output.gpa))
-out_gpa_roary = Path(str(snakemake.output.gpa_roary))
-out_gene_data = Path(str(snakemake.output.gene_data))
-out_pan_ref   = Path(str(snakemake.output.pan_ref))
-out_dna_cds   = Path(str(snakemake.output.dna_cds))
-out_prot_cds  = Path(str(snakemake.output.prot_cds))
-out_gml       = Path(str(snakemake.output.gml))
-
-out_gpa.parent.mkdir(parents=True, exist_ok=True)
-
-
-# ── 1. Load bakta annotations ─────────────────────────────────────────────────
+# ── Helper: load bakta annotations ────────────────────────────────────
 
 def load_bakta_annotations(path):
     """Parse bakta_proteins TSV → {group_id: {'gene': str, 'product': str}}."""
@@ -55,12 +35,7 @@ def load_bakta_annotations(path):
             result[group_id] = {"gene": gene, "product": product}
     return result
 
-
-annotations = load_bakta_annotations(bakta_tsv)
-logging.info("Loaded bakta annotations for %d groups.", len(annotations))
-
-
-# ── 2. Parse GML: seqID → group_name ─────────────────────────────────────────
+# ── Helper: parse GML to get group IDs ────────────────────────────────────
 
 def parse_gml_seqid_to_group(gml_path):
     """Parse panaroo final_graph.gml → {seqID: group_name}.
@@ -106,11 +81,6 @@ def parse_gml_seqid_to_group(gml_path):
 
     return seqid_to_group
 
-
-seqid_to_group = parse_gml_seqid_to_group(panaroo_dir / "final_graph.gml")
-logging.info("Parsed %d seqID→group mappings from GML.", len(seqid_to_group))
-
-
 # ── Helper: build FASTA annotation string ────────────────────────────────────
 
 def fasta_annotation(ann):
@@ -122,6 +92,7 @@ def fasta_annotation(ann):
         parts.append(f"[product={ann['product']}]")
     return " ".join(parts)
 
+# ── Helper: write FASTA record ───────────────────────────────────────────────
 
 def write_fasta(fh, record_id, annotation_str, sequence):
     """Write a single FASTA record with 60-char wrapped sequence."""
@@ -131,22 +102,9 @@ def write_fasta(fh, record_id, annotation_str, sequence):
     for i in range(0, len(seq), 60):
         fh.write(seq[i : i + 60] + "\n")
 
+# ── Main annotation update functions ─────────────────────────────────────────
 
-# ── 3. pan_genome_reference.fa ───────────────────────────────────────────────
-
-written = 0
-with open(out_pan_ref, "w") as fh:
-    for record in SeqIO.parse(panaroo_dir / "pan_genome_reference.fa", "fasta"):
-        ann  = annotations.get(record.id, {})
-        desc = fasta_annotation(ann)
-        write_fasta(fh, record.id, desc, record.seq)
-        written += 1
-logging.info("pan_genome_reference.fa: updated %d records.", written)
-
-
-# ── 4. combined_DNA_CDS.fasta & combined_protein_CDS.fasta ──────────────────
-
-def update_cds_fasta(in_path, out_path):
+def update_cds_fasta(in_path, out_path, logging=logging):
     written = 0
     with open(out_path, "w") as fh:
         for record in SeqIO.parse(in_path, "fasta"):
@@ -157,35 +115,9 @@ def update_cds_fasta(in_path, out_path):
             written += 1
     logging.info("%s: updated %d records.", out_path.name, written)
 
+# ── Update gene presence/absence ──────────────────────────────────────────
 
-update_cds_fasta(panaroo_dir / "combined_DNA_CDS.fasta",     out_dna_cds)
-update_cds_fasta(panaroo_dir / "combined_protein_CDS.fasta", out_prot_cds)
-
-
-# ── 5. gene_data.csv ─────────────────────────────────────────────────────────
-
-updated = 0
-with (
-    open(panaroo_dir / "gene_data.csv", newline="") as in_fh,
-    open(out_gene_data, "w", newline="") as out_fh,
-):
-    reader = csv.DictReader(in_fh)
-    writer = csv.DictWriter(out_fh, fieldnames=reader.fieldnames)
-    writer.writeheader()
-    for row in reader:
-        group = seqid_to_group.get(row["clustering_id"], "")
-        ann   = annotations.get(group, {}) if group else {}
-        if ann:
-            row["gene_name"]   = ann.get("gene",    row.get("gene_name",   ""))
-            row["description"] = ann.get("product", row.get("description", ""))
-            updated += 1
-        writer.writerow(row)
-logging.info("gene_data.csv: updated %d rows.", updated)
-
-
-# ── 6. gene_presence_absence.csv & gene_presence_absence_roary.csv ───────────
-
-def update_gpa(in_path, out_path):
+def update_gpa(in_path, out_path, logging=logging):
     updated = 0
     with (
         open(in_path, newline="") as in_fh,
@@ -208,32 +140,30 @@ def update_gpa(in_path, out_path):
     logging.info("%s: updated %d rows.", out_path.name, updated)
 
 
-update_gpa(
-    panaroo_dir / "gene_presence_absence.csv",       out_gpa
-)
-update_gpa(
-    panaroo_dir / "gene_presence_absence_roary.csv",  out_gpa_roary
-)
-
-
-# ── 7. final_graph.gml ───────────────────────────────────────────────────────
+# ── Update GML annotations ───────────────────────────────────────────────
 
 def gml_escape(s):
     """Escape backslashes and double-quotes for GML string values."""
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
+def update_gml(in_path, out_path, logging=logging):
+    """Buffer each node block, then flush with updated annotation/description.
 
-def update_gml(in_path, out_path):
-    """Buffer each node block, then flush with updated annotation/description."""
+    Handles both final_graph.gml (nodes have a 'name' field with the group ID)
+    and pre_filt_graph.gml (no 'name' field; seqIDs stored as a Python list
+    repr string), falling back to seqID→group lookup via seqid_to_group.
+    """
     bracket_depth    = 0
     node_start_depth = None
     buffer           = []
     current_name     = None
+    current_seqids   = []
     updated_nodes    = 0
 
-    _ann_re  = re.compile(r'^\s*annotation\s+"[^"]*"')
-    _desc_re = re.compile(r'^\s*description\s+"[^"]*"')
-    _name_re = re.compile(r'^\s*name\s+"([^"]+)"')
+    _ann_re    = re.compile(r'^\s*annotation\s+"[^"]*"')
+    _desc_re   = re.compile(r'^\s*description\s+"[^"]*"')
+    _name_re   = re.compile(r'^\s*name\s+"([^"]+)"')
+    _seqid_re  = re.compile(r'^\s*seqIDs\s+"([^"]+)"')
 
     with open(in_path) as in_fh, open(out_path, "w") as out_fh:
         for line in in_fh:
@@ -245,6 +175,7 @@ def update_gml(in_path, out_path):
                     node_start_depth = bracket_depth
                     buffer           = [line]
                     current_name     = None
+                    current_seqids   = []
                 elif node_start_depth is not None and bracket_depth > node_start_depth:
                     buffer.append(line)
                 else:
@@ -255,9 +186,17 @@ def update_gml(in_path, out_path):
                     node_start_depth is not None
                     and bracket_depth == node_start_depth
                 ):
+                    # Resolve group name: prefer 'name' field, else look up via seqIDs
+                    group_name = current_name
+                    if group_name is None:
+                        for sid in current_seqids:
+                            group_name = seqid_to_group.get(sid)
+                            if group_name:
+                                break
+
                     # Flush node buffer with annotation substitutions
                     buffer.append(line)
-                    ann     = annotations.get(current_name, {})
+                    ann     = annotations.get(group_name, {}) if group_name else {}
                     gene    = gml_escape(ann.get("gene",    ""))
                     product = gml_escape(ann.get("product", ""))
                     for buf_line in buffer:
@@ -273,6 +212,7 @@ def update_gml(in_path, out_path):
                         updated_nodes += 1
                     node_start_depth = None
                     current_name     = None
+                    current_seqids   = []
                     buffer           = []
                 elif node_start_depth is not None and bracket_depth > node_start_depth:
                     buffer.append(line)
@@ -285,13 +225,110 @@ def update_gml(in_path, out_path):
                     m = _name_re.match(line)
                     if m:
                         current_name = m.group(1)
+                    m = _seqid_re.match(line)
+                    if m:
+                        raw = m.group(1)
+                        if raw.startswith("["):
+                            # pre_filt format: seqIDs "['id1', 'id2', ...]"
+                            for sid in re.findall(r"'([^']+)'", raw):
+                                if sid != "_networkx_list_start":
+                                    current_seqids.append(sid)
+                        elif raw != "_networkx_list_start":
+                            # final_graph format: one seqID per line
+                            current_seqids.append(raw)
                     buffer.append(line)
                 else:
                     out_fh.write(line)
 
-    logging.info("final_graph.gml: updated %d nodes.", updated_nodes)
+    logging.info("graph.gml: updated %d nodes.", updated_nodes)
+
+bakta_tsv   = Path(snakemake.input.bakta_tsv)
+panaroo_dir = Path(snakemake.params.panaroo_dir)
+output       = Path(snakemake.output[0])
+logfile      = Path(snakemake.log[0])
+
+logging.basicConfig(
+    filename=str(logfile),
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+
+out_gpa       = output if snakemake.params.output_type == 'gpa' else None
+out_gpa_roary = output if snakemake.params.output_type == 'gpa_roary' else None
+out_gene_data = output if snakemake.params.output_type == 'gene_data' else None
+out_pan_ref   = output if snakemake.params.output_type == 'pan_ref' else None
+out_dna_cds   = output if snakemake.params.output_type == 'dna_cds' else None
+out_prot_cds  = output if snakemake.params.output_type == 'prot_cds' else None
+out_gml       = output if snakemake.params.output_type == 'gml' else None
+out_gml_pref_filt = output if snakemake.params.output_type == 'gml_pref_filt' else None
+
+output.parent.mkdir(parents=True, exist_ok=True)
+
+# ── 1. Load bakta annotations ─────────────────────────────────────────────────
+annotations = load_bakta_annotations(bakta_tsv)
+logging.info("Loaded bakta annotations for %d groups.", len(annotations))
+
+# ── 2. Parse GML: seqID → group_name ─────────────────────────────────────────
+seqid_to_group = parse_gml_seqid_to_group(panaroo_dir / "final_graph.gml")
+logging.info("Parsed %d seqID→group mappings from GML.", len(seqid_to_group))
+
+# ── 3. pan_genome_reference.fa ───────────────────────────────────────────────
+
+if out_pan_ref:
+    written = 0
+    with open(out_pan_ref, "w") as fh:
+        for record in SeqIO.parse(panaroo_dir / "pan_genome_reference.fa", "fasta"):
+            ann  = annotations.get(record.id, {})
+            desc = fasta_annotation(ann)
+            write_fasta(fh, record.id, desc, record.seq)
+            written += 1
+    logging.info("pan_genome_reference.fa: updated %d records.", written)
 
 
-update_gml(panaroo_dir / "final_graph.gml", out_gml)
+# ── 4. combined_DNA_CDS.fasta & combined_protein_CDS.fasta ──────────────────
 
+if out_dna_cds:
+    update_cds_fasta(panaroo_dir / "combined_DNA_CDS.fasta", out_dna_cds, logging=logging)
+if out_prot_cds:
+    update_cds_fasta(panaroo_dir / "combined_protein_CDS.fasta", out_prot_cds, logging=logging)
+
+# ── 5. gene_data.csv ─────────────────────────────────────────────────────────
+
+if out_gene_data:
+    updated = 0
+    with (
+        open(panaroo_dir / "gene_data.csv", newline="") as in_fh,
+        open(out_gene_data, "w", newline="") as out_fh,
+    ):
+        reader = csv.DictReader(in_fh)
+        writer = csv.DictWriter(out_fh, fieldnames=reader.fieldnames)
+        writer.writeheader()
+        for row in reader:
+            group = seqid_to_group.get(row["clustering_id"], "")
+            ann   = annotations.get(group, {}) if group else {}
+            if ann:
+                row["gene_name"]   = ann.get("gene",    row.get("gene_name",   ""))
+                row["description"] = ann.get("product", row.get("description", ""))
+                updated += 1
+            writer.writerow(row)
+    logging.info("gene_data.csv: updated %d rows.", updated)
+
+
+# ── 6. gene_presence_absence.csv & gene_presence_absence_roary.csv ───────────
+
+if out_gpa:
+    update_gpa(
+        panaroo_dir / "gene_presence_absence.csv", out_gpa, logging=logging
+    )
+if out_gpa_roary:
+    update_gpa(
+        panaroo_dir / "gene_presence_absence_roary.csv",  out_gpa_roary, logging=logging
+    )
+
+# ── 7. final_graph.gml ───────────────────────────────────────────────────────
+
+if out_gml:
+    update_gml(panaroo_dir / "final_graph.gml", out_gml, logging=logging)
+if out_gml_pref_filt:
+    update_gml(panaroo_dir / "pre_filt_graph.gml", out_gml_pref_filt, logging=logging)
 logging.info("Annotation update complete.")

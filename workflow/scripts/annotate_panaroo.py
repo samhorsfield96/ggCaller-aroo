@@ -147,16 +147,23 @@ def gml_escape(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 def update_gml(in_path, out_path, logging=logging):
-    """Buffer each node block, then flush with updated annotation/description."""
+    """Buffer each node block, then flush with updated annotation/description.
+
+    Handles both final_graph.gml (nodes have a 'name' field with the group ID)
+    and pre_filt_graph.gml (no 'name' field; seqIDs stored as a Python list
+    repr string), falling back to seqID→group lookup via seqid_to_group.
+    """
     bracket_depth    = 0
     node_start_depth = None
     buffer           = []
     current_name     = None
+    current_seqids   = []
     updated_nodes    = 0
 
-    _ann_re  = re.compile(r'^\s*annotation\s+"[^"]*"')
-    _desc_re = re.compile(r'^\s*description\s+"[^"]*"')
-    _name_re = re.compile(r'^\s*name\s+"([^"]+)"')
+    _ann_re    = re.compile(r'^\s*annotation\s+"[^"]*"')
+    _desc_re   = re.compile(r'^\s*description\s+"[^"]*"')
+    _name_re   = re.compile(r'^\s*name\s+"([^"]+)"')
+    _seqid_re  = re.compile(r'^\s*seqIDs\s+"([^"]+)"')
 
     with open(in_path) as in_fh, open(out_path, "w") as out_fh:
         for line in in_fh:
@@ -168,6 +175,7 @@ def update_gml(in_path, out_path, logging=logging):
                     node_start_depth = bracket_depth
                     buffer           = [line]
                     current_name     = None
+                    current_seqids   = []
                 elif node_start_depth is not None and bracket_depth > node_start_depth:
                     buffer.append(line)
                 else:
@@ -178,9 +186,17 @@ def update_gml(in_path, out_path, logging=logging):
                     node_start_depth is not None
                     and bracket_depth == node_start_depth
                 ):
+                    # Resolve group name: prefer 'name' field, else look up via seqIDs
+                    group_name = current_name
+                    if group_name is None:
+                        for sid in current_seqids:
+                            group_name = seqid_to_group.get(sid)
+                            if group_name:
+                                break
+
                     # Flush node buffer with annotation substitutions
                     buffer.append(line)
-                    ann     = annotations.get(current_name, {})
+                    ann     = annotations.get(group_name, {}) if group_name else {}
                     gene    = gml_escape(ann.get("gene",    ""))
                     product = gml_escape(ann.get("product", ""))
                     for buf_line in buffer:
@@ -196,6 +212,7 @@ def update_gml(in_path, out_path, logging=logging):
                         updated_nodes += 1
                     node_start_depth = None
                     current_name     = None
+                    current_seqids   = []
                     buffer           = []
                 elif node_start_depth is not None and bracket_depth > node_start_depth:
                     buffer.append(line)
@@ -208,11 +225,22 @@ def update_gml(in_path, out_path, logging=logging):
                     m = _name_re.match(line)
                     if m:
                         current_name = m.group(1)
+                    m = _seqid_re.match(line)
+                    if m:
+                        raw = m.group(1)
+                        if raw.startswith("["):
+                            # pre_filt format: seqIDs "['id1', 'id2', ...]"
+                            for sid in re.findall(r"'([^']+)'", raw):
+                                if sid != "_networkx_list_start":
+                                    current_seqids.append(sid)
+                        elif raw != "_networkx_list_start":
+                            # final_graph format: one seqID per line
+                            current_seqids.append(raw)
                     buffer.append(line)
                 else:
                     out_fh.write(line)
 
-    logging.info("final_graph.gml: updated %d nodes.", updated_nodes)
+    logging.info("graph.gml: updated %d nodes.", updated_nodes)
 
 bakta_tsv   = Path(snakemake.input.bakta_tsv)
 panaroo_dir = Path(snakemake.params.panaroo_dir)
@@ -232,6 +260,7 @@ out_pan_ref   = output if snakemake.params.output_type == 'pan_ref' else None
 out_dna_cds   = output if snakemake.params.output_type == 'dna_cds' else None
 out_prot_cds  = output if snakemake.params.output_type == 'prot_cds' else None
 out_gml       = output if snakemake.params.output_type == 'gml' else None
+out_gml_pref_filt = output if snakemake.params.output_type == 'gml_pref_filt' else None
 
 output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -300,5 +329,6 @@ if out_gpa_roary:
 
 if out_gml:
     update_gml(panaroo_dir / "final_graph.gml", out_gml, logging=logging)
-
+if out_gml_pref_filt:
+    update_gml(panaroo_dir / "pre_filt_graph.gml", out_gml_pref_filt, logging=logging)
 logging.info("Annotation update complete.")

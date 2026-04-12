@@ -14,3 +14,4 @@ rule all:
         config["output_dir"] + "/annotated/gene_presence_absence.csv",
         config["output_dir"] + "/annotated/gene_presence_absence_roary.csv",
         config["output_dir"] + "/annotated/final_graph.gml",
+        config["output_dir"] + "/annotated/pre_filt_graph.gml",

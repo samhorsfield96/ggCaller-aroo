@@ -123,3 +123,21 @@ rule annotate_gml:
         "envs/bakta.yaml"
     script:
         "../scripts/annotate_panaroo.py"
+
+rule annotate_gml_pref_filt:
+    """Propagate bakta_proteins annotations to panaroo pre-filtered gml output files."""
+    input:
+        bakta_tsv=config["output_dir"] + "/bakta_proteins/proteins.tsv",
+        pan_ref=config["output_dir"] + "/panaroo/pan_genome_reference.fa",
+    output:
+        config["output_dir"] + "/annotated/pre_filt_graph.gml"
+    params:
+        panaroo_dir=config["output_dir"] + "/panaroo",
+        output_type="gml_pref_filt",
+    log:
+        config["output_dir"] + "/logs/annotate_panaroo_gml_pref_filt.log",
+    threads: 1
+    conda:
+        "envs/bakta.yaml"
+    script:
+        "../scripts/annotate_panaroo.py"

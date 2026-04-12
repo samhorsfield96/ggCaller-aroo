@@ -21,6 +21,9 @@ Input assemblies
       │
       ▼
 bakta_proteins ── functional annotation of representative proteins
+      │
+      ▼
+Annotate Panaroo ── update Panaroo outputs with functional annotation
 ```
 
 1. **ggCaller** – graph-based gene prediction on bacterial genome assemblies.
@@ -28,6 +31,7 @@ bakta_proteins ── functional annotation of representative proteins
    (one representative nucleotide sequence per gene cluster).
 3. **Translation** – converts representative nucleotide sequences to amino acids.
 4. **Bakta** – annotates representative proteins with `bakta_proteins`.
+5. **Annotate Panaroo** - uses Bakta representatives to update annotations in Panaroo outputs
 
 ## From docker
 
@@ -129,8 +133,7 @@ All tool-specific parameters are controlled via `config/config.yaml`.
 |------|-------------|
 | `{output_dir}/ggcaller/` | ggCaller output (GFF files, protein FASTAs, etc.) |
 | `{output_dir}/panaroo/` | Panaroo output (pangenome files) |
-| `{output_dir}/panaroo/pan_genome_reference.fa` | Representative gene sequences (nucleotide) |
-| `{output_dir}/translated/pan_genome_reference.faa` | Translated representative proteins |
 | `{output_dir}/bakta_proteins/` | Bakta annotation output |
-| `{output_dir}/bakta_proteins/proteins.tsv` | Annotation results (TSV) |
+| `{output_dir}/annotated/` | Directory of annotated Panaroo outputs |
 | `{output_dir}/logs/` | Log files for each pipeline step |
+
